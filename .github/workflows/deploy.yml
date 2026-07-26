@@ -1,0 +1,44 @@
+name: Deploy to Cloudflare Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-cloudflare
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      # Pages プロジェクトは Git 連携で作られているが、GitHub アカウント移行で
+      # その連携は切れている。公式に「Git 連携プロジェクトへも wrangler で直接
+      # デプロイできる」と案内されているため、Direct Upload で配る。
+      # https://developers.cloudflare.com/pages/configuration/git-integration/
+      #   （"Disable automatic deployments" の節）
+      # --branch=main を付けないとプレビュー扱いになり本番に反映されない。
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          # package.json の devDependencies.wrangler と揃えること
+          wranglerVersion: "3.99.0"
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy --project-name=blog-cms --branch=main
