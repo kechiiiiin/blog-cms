@@ -39,8 +39,8 @@ export default function BodyEditor({ initialValue, contentType, onChange }: Prop
           initialEditType: 'wysiwyg',
           hideModeSwitch: true,
           previewStyle: 'vertical',
-          // スマホは 60vh（キーボード表示で縮む viewport 対策）、PC は従来どおり 600px
-          height: isMobile ? '60vh' : '600px',
+          // スマホは 60vh（キーボード表示で縮む viewport 対策）、PC は 900px（2026-09-06 に 600px から拡張）
+          height: isMobile ? '60vh' : '900px',
           // スマホはツールバーを1行に絞る（グループ=配列の配列で渡す。フラットだと実行時エラー）
           // PC はキーごと省略してデフォルトに任せる。`toolbarItems: undefined` と渡すと
           // Toast UI の extend がデフォルト定義を undefined で上書きし、ボタンが全部消える。
