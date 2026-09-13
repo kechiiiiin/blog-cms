@@ -1,4 +1,4 @@
-import { useState } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
 import type { ContentType } from '../lib/content-types';
 import BodyEditor from './BodyEditor';
 import { uploadImage } from '../lib/upload-client';
@@ -30,8 +30,26 @@ function toLocalInput(iso?: string): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+// 新規ブログのスラッグ用。既存記事（microCMS 由来）に揃えて英小文字+数字の12文字
+const SLUG_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789';
+function randomSlug(length = 12): string {
+  let out = '';
+  while (out.length < length) {
+    for (const b of crypto.getRandomValues(new Uint8Array(length))) {
+      // 252 = 36*7。余りの偏りを避けるため超過分は捨てる
+      if (b < 252 && out.length < length) out += SLUG_CHARS[b % 36];
+    }
+  }
+  return out;
+}
+
 export default function PostForm({ type, initial, isNew }: Props) {
   const [id, setId] = useState(initial.id ?? '');
+
+  // SSR とハイドレーションで値がずれないよう、生成はマウント後に行う
+  useEffect(() => {
+    if (isNew && type === 'blog' && !initial.id) setId(randomSlug());
+  }, []);
   const [title, setTitle] = useState(initial.title ?? '');
   const [description, setDescription] = useState(initial.description ?? '');
   const [tags, setTags] = useState((initial.tags ?? []).join(', '));
@@ -112,14 +130,22 @@ export default function PostForm({ type, initial, isNew }: Props) {
         </>
       ) : (
         <>
-          <label>スラッグ（ファイル名 id）</label>
-          <input
-            value={id}
-            disabled={!isNew}
-            required
-            placeholder="例: my-first-post"
-            onInput={(e) => setId((e.target as HTMLInputElement).value)}
-          />
+          <label>スラッグ（ファイル名 id{type === 'blog' ? '・自動生成' : ''}）</label>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <input
+              value={id}
+              disabled={!isNew}
+              required
+              style={{ flex: 1 }}
+              placeholder="例: my-first-post"
+              onInput={(e) => setId((e.target as HTMLInputElement).value)}
+            />
+            {isNew && type === 'blog' && (
+              <button type="button" onClick={() => setId(randomSlug())} style={{ whiteSpace: 'nowrap' }}>
+                再生成
+              </button>
+            )}
+          </div>
         </>
       )}
 
