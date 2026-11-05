@@ -18,3 +18,12 @@ bucket_name = "images"
 [[kv_namespaces]]
 binding = "CMS_CACHE"
 id = "bed190d381d846f0b24e7669fd04b172"
+
+# 関所（sekisho・Cloudflare Access の JWT を検証する認証 Worker）。src/lib/auth/sekisho.ts が RPC で verify を呼ぶ。
+# Pages でも Workers と同じ書き方（https://developers.cloudflare.com/pages/functions/wrangler-configuration/#service-bindings）。
+# トップレベルに書いたバインディングは production / preview の両方に効く。[env.production] / [env.preview] を
+# 足すと services・r2_buckets・kv_namespaces などの非継承キーを全部書き直す必要があるので、分けない。
+# チームドメインと許可メールは関所の側で持つ（ここの secret は CF_ACCESS_AUD だけ）。
+[[services]]
+binding = "SEKISHO"
+service = "sekisho"

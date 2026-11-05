@@ -1,14 +1,9 @@
 import { defineMiddleware } from 'astro:middleware';
-import { createRemoteJWKSet, jwtVerify } from 'jose';
+import { verifyAccess } from './lib/auth/sekisho';
 
-// Cloudflare Access の JWT を公開鍵（JWKS）で署名検証する。
-// Access はリクエストに Cf-Access-Jwt-Assertion ヘッダで JWT を付与する。
-// （旧実装は Cf-Access-Authenticated-User-Email ヘッダを信用していたが、
-//  Pages を Access 背後に置くとこのヘッダは付かず JWT のみ届く。かつ署名検証の方が堅牢。）
-// 検証内容: 署名・iss・aud・有効期限（jose 既定）→ その上で email allowlist。
-
-// JWKS はモジュールスコープでキャッシュ（jose が内部で cooldown 管理する）
-let jwks: ReturnType<typeof createRemoteJWKSet> | null = null;
+// Cloudflare Access がリクエストに付ける Cf-Access-Jwt-Assertion を、
+// 関所（sekisho・Access の JWT を検証する認証 Worker）に Service Binding（SEKISHO）の RPC で確かめてもらう。
+// 署名・iss・aud・exp・許可メールの判定は関所の側（呼び出しは src/lib/auth/sekisho.ts）。**fail-closed**。
 
 export const onRequest = defineMiddleware(async (context, next) => {
   const { locals, request } = context;
@@ -24,31 +19,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
     }
   }
 
-  const token = request.headers.get('Cf-Access-Jwt-Assertion');
-  if (!token || !env?.CF_ACCESS_TEAM_DOMAIN || !env?.CF_ACCESS_AUD) {
-    return new Response('Unauthorized', { status: 401 });
+  // トークン無し・不正・期限切れ・許可メール外・関所の不調・設定漏れは 401、サービストークンは 403
+  const auth = await verifyAccess(request, env);
+  if (!auth.ok) {
+    return new Response(auth.status === 403 ? 'Forbidden' : 'Unauthorized', { status: auth.status });
   }
 
-  try {
-    jwks ??= createRemoteJWKSet(new URL(`${env.CF_ACCESS_TEAM_DOMAIN}/cdn-cgi/access/certs`));
-    const { payload } = await jwtVerify(token, jwks, {
-      issuer: env.CF_ACCESS_TEAM_DOMAIN,
-      audience: env.CF_ACCESS_AUD,
-    });
-    const email = String(payload.email ?? '').toLowerCase();
-
-    const allowed = (env.ALLOWED_EMAILS ?? '')
-      .split(',')
-      .map((e: string) => e.trim().toLowerCase())
-      .filter(Boolean);
-    // allowlist 未設定は fail-closed（全員拒否）。設定漏れを裏口にしない
-    if (!email || allowed.length === 0 || !allowed.includes(email)) {
-      return new Response('Forbidden', { status: 403 });
-    }
-
-    locals.user = { email };
-    return next();
-  } catch {
-    return new Response('Unauthorized', { status: 401 });
-  }
+  locals.user = { email: auth.email };
+  return next();
 });

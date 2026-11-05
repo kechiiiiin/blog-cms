@@ -6,8 +6,6 @@ GITHUB_TOKEN="ghp_xxx"
 GITHUB_OWNER="keisuke-yamauch1"
 GITHUB_REPO="astro-blog"
 
-# 認証: Cloudflare Access で許可するメールアドレス（カンマ区切り）
-ALLOWED_EMAILS="kechiiiiin@gmail.com"
-
+# 認証は関所（sekisho）が見る（許可メールも関所の側）。ローカルは下のバイパスで通す。
 # ローカル開発で認証をバイパスする（本番では絶対に設定しない）
 DEV_BYPASS_AUTH="true"

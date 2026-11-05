@@ -5,11 +5,10 @@ interface Env {
   GITHUB_TOKEN: string;
   GITHUB_OWNER: string;
   GITHUB_REPO: string;
-  ALLOWED_EMAILS?: string;
   DEV_BYPASS_AUTH?: string;
-  // Cloudflare Access JWT 検証用
-  CF_ACCESS_TEAM_DOMAIN?: string; // 例: https://kechiiiiin.cloudflareaccess.com
-  CF_ACCESS_AUD?: string;         // Access アプリの Application Audience (AUD) tag
+  // Cloudflare Access の JWT は関所（sekisho）に Service Binding の RPC で検証してもらう（wrangler.toml の [[services]]）
+  SEKISHO?: import('./lib/auth/sekisho').Sekisho;
+  CF_ACCESS_AUD?: string; // この Access アプリの Application Audience (AUD) tag。関所に渡す
   // R2 バケット（画像アップロード先・images.kechiiiiin.com）
   IMAGES?: R2Bucket;
   // KV: 一覧メタのキャッシュ（真実は GitHub。壊れたらキー削除で再構築される）
